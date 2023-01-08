@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns="http://www.springframework.org/schema/beans"
+       xmlns:task="http://www.springframework.org/schema/task" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:cache="http://www.springframework.org/schema/cache" xmlns:c='http://www.springframework.org/schema/c'
+       xmlns:p="http://www.springframework.org/schema/p" xmlns:jaxrs="http://cxf.apache.org/jaxrs"
+       xmlns:jaxrs-client="http://cxf.apache.org/jaxrs-client"
+       xmlns:cxf="http://cxf.apache.org/core"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/aop 
+       http://www.springframework.org/schema/aop/spring-aop.xsd
+       http://www.springframework.org/schema/cache
+       http://www.springframework.org/schema/cache/spring-cache.xsd
+       http://www.springframework.org/schema/task
+       http://www.springframework.org/schema/task/spring-task.xsd
+       http://www.springframework.org/schema/tx
+       http://www.springframework.org/schema/tx/spring-tx.xsd
+      http://cxf.apache.org/jaxrs-client
+      http://cxf.apache.org/schemas/jaxrs-client.xsd
+                        http://cxf.apache.org/jaxrs
+                        http://cxf.apache.org/schemas/jaxrs.xsd
+                        http://cxf.apache.org/core
+                        http://cxf.apache.org/schemas/core.xsd">
+
+    <context:component-scan base-package="com.haier.hairy.fund, com.haier.hairy.cxf"/>
+
+    <!-- 切面处理 -->
+    <aop:aspectj-autoproxy/>
+    
+    <import resource="classpath:kjt-webservice.xml"/>
+	
+    <bean id="propertyConfigurer" class="com.haier.hairy.common.util.EncryptedPropertyPlaceholderConfigurer">
+        <property name="locations">
+            <list>
+                <!-- 用自己的配置文件路径替换 -->
+                <value>classpath:jdbc.properties</value>
+                <value>classpath:webservice.properties</value>
+                <!-- <value>classpath:default.properties</value> -->
+               	<!-- <value>classpath:application.properties</value> -->
+            </list>
+        </property>
+    </bean>
+    
+    <!-- 信息 模版
+    <bean id="letterTemple"
+      class="com.haier.hairy.fund.property.LetterTemple">
+      <property name="ignoreResourceNotFound" value="true" />
+      <property name="locations">
+          <list>
+              <value>classpath:temple/letter.properties</value>
+          </list>
+      </property>
+    </bean>
+    -->
+    <!-- 标的参数 
+    <bean id="bidProperty"
+      class="com.haier.hairy.fund.property.BidProperty">
+      <property name="ignoreResourceNotFound" value="true" />
+      <property name="locations">
+          <list>
+              <value>classpath:bid.properties</value>
+          </list>
+      </property>
+    </bean>
+    -->
+    <!-- 信息发送参数 
+    <bean id="smsBase"
+      class="com.haier.hairy.fund.property.SmsBase">
+      <property name="ignoreResourceNotFound" value="true" />
+      <property name="locations">
+          <list>
+              <value>classpath:sms_base.properties</value>
+          </list>
+      </property>
+    </bean>
+     -->
+    
+    <bean id="validator" class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean"/>
+    
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+          p:driverClassName="${jdbc.driver}"
+          p:url="${jdbc.url}"
+          p:username="${jdbc.username}"
+          p:password="${jdbc.password}"
+          p:maxActive="${jdbc.maxActive}"
+          p:minIdle="${jdbc.minIdle}"
+          p:maxIdle="${jdbc.maxIdle}"
+          p:initialSize="${jdbc.initialSize}"
+          p:logAbandoned="${jdbc.logAbandoned}"
+          p:removeAbandoned="${jdbc.removeAbandoned}"
+          p:removeAbandonedTimeout="${jdbc.removeAbandonedTimeout}"
+          p:maxWait="${jdbc.maxWait}"
+          p:timeBetweenEvictionRunsMillis="${jdbc.timeBetweenEvictionRunsMillis}"
+          p:numTestsPerEvictionRun="${jdbc.numTestsPerEvictionRun}"
+          p:validationQuery="SELECT NOW() FROM DUAL"
+          p:testOnBorrow="${jdbc.testOnBorrow}"
+          p:testOnReturn="${jdbc.testOnReturn}"
+            />
+
+    <!-- 配置事务管理器 -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager"
+          p:dataSource-ref="dataSource"/>
+
+    <context:annotation-config/>
+    <task:annotation-driven/> 
+    <tx:annotation-driven transaction-manager="transactionManager"/>
+
+
+
+
+	<!-- 创建SqlSessionFactory，同时指定数据源 -->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean" p:dataSource-ref="dataSource" 
+	p:configLocation="classpath:mybatis-config.xml" 
+	p:plugins-ref="pageHelper"
+	/>
+
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer"  >
+    	<property name="basePackage" value="com.haier.hairy.fund.db.dao" />
+	</bean>	
+
+	<!-- end -->
+	
+	 <bean id="pageHelper" class="com.github.pagehelper.PageHelper">
+        <property name="properties">
+            <value>
+                dialect=mysql
+                reasonable=true
+            </value>
+        </property>
+    </bean>
+	
+    <!-- 配置 CXF -->
+    <import resource="classpath:META-INF/cxf/cxf.xml"/>
+    <import resource="classpath:META-INF/cxf/cxf-servlet.xml"/>
+
+    <!-- restful webservice -->
+    <jaxrs:server id="fund" address="/">
+        <jaxrs:serviceBeans>
+            <ref bean="fundInFacade"/>
+            
+            <ref bean="swaggerResource"/>
+        </jaxrs:serviceBeans>
+        <jaxrs:providers>
+            <bean class="com.haier.hairy.cxf.util.HryJacksonJsonProvider"/>
+            <bean class="com.haier.hairy.cxf.filters.TraceNumberFilter"/>
+            <bean class="com.haier.hairy.cxf.mapper.HairyBizExceptionMapper"/>
+            <bean class="com.haier.hairy.cxf.mapper.ThrowableMapper"/>
+            <bean class="com.haier.hairy.cxf.mapper.ValidationExceptionMapper" />
+            <bean class="io.swagger.jaxrs.listing.SwaggerSerializers"/>
+        </jaxrs:providers>
+
+        <!-- enable request/resposne logging -->
+        <jaxrs:features>
+            <cxf:logging/>
+            <ref bean="commonValidationFeature"/>
+        </jaxrs:features>
+
+        <jaxrs:inInterceptors>
+            <!-- 记录action开始时间 -->
+            <bean class="com.haier.hairy.cxf.interceptor.LogActionStartInterceptor"/>
+        </jaxrs:inInterceptors>
+       
+        <jaxrs:outInterceptors>
+            <!-- 允许跨域访问 -->
+            <bean class="com.haier.hairy.cxf.interceptor.CrossAccessInterceptor"/>
+           
+            <!-- 记录action处理的时间 -->
+            <bean class="com.haier.hairy.cxf.interceptor.LogActionProcessedInterceptor"/>
+           
+            <!-- 记录action结束的时间，包含resposne返回给client的网络时间 -->
+            <bean class="com.haier.hairy.cxf.interceptor.LogActionEndInterceptor"/>
+        </jaxrs:outInterceptors>
+
+    </jaxrs:server>
+
+
+    <bean id="commonValidationFeature" class="org.apache.cxf.validation.BeanValidationFeature"/>
+
+    <bean id="swaggerResource" class="io.swagger.jaxrs.listing.ApiListingResource"/>
+
+    <!-- this scans the classes for resources -->
+    <bean id="swaggerConfig" class="io.swagger.jaxrs.config.BeanConfig">
+        <property name="resourcePackage" value="com.haier.hairy.fund.facade"/>
+        <property name="version" value="1.0.0"/>
+        <property name="host" value="${serverHost}:${httpPort}"/>
+        <property name="basePath" value="/"/>
+        <property name="title" value="海融易天天聚系统"/>
+        <property name="description" value="海融易天天聚业务相关接口"/>
+        <property name="contact" value="apiteam@swagger.io"/>
+        <property name="license" value="Apache 2.0"/>
+        <property name="licenseUrl" value="http://www.apache.org/licenses/LICENSE-2.0.html"/>
+        <property name="scan" value="true"/>
+    </bean>
+
+
+	
+    <bean id="fundServiceClient" class="com.haier.hairy.cxf.util.CxfClient" p:endPoint="${hryMemberFacade}" p:connectionTimeout="2000" p:receiveTimeout="10000" />
+    
+    <!-- 
+    <bean id="hryMemberFacade" class="com.haier.hairy.member.facade.IMemberFacade" factory-bean="p2pServiceClient" factory-method="get">
+    	<constructor-arg value="com.haier.hairy.member.facade.IMemberFacade"/>
+    </bean>
+    <bean id="sessionFacade" class="com.haier.hairy.member.facade.ISessionFacade" factory-bean="p2pServiceClient" factory-method="get">
+        <constructor-arg value="com.haier.hairy.member.facade.ISessionFacade"/>
+    </bean>
+    
+    <bean id="jmsRecv" class="com.haier.hairy.fund.mq.JmsRecv">
+		<property name="concurrentConsumers" value="10" />
+		<property name="destination" value="hry.credit.repay.notify" />
+		<property name="failoverService" ref="commonFailoverService">
+		</property>
+	</bean>
+
+	<bean id="messageHandlerContainer"
+		class="com.netfinworks.mq.listener.DefaultMessageHandlerContainer"
+		init-method="init">
+		<property name="connectionFactory" ref="pooledConnectionFactory" />
+		<property name="messageHandlers">
+			<list>
+				<ref bean="jmsRecv" />
+			</list>
+		</property>
+	</bean>
+     -->
+	
+</beans>
